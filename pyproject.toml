@@ -1,0 +1,43 @@
+[project]
+name = "vault-docs"
+version = "0.1.0"
+description = "AI-powered document vault: upload, async processing, AI insights, and chat with citations"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    "pgvector>=0.3",
+    "rq>=2.0",
+    "redis>=5.0",
+    "pdfplumber>=0.11",
+    "python-docx>=1.1",
+    "openai>=1.40",
+    "pydantic-settings>=2.4",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+# Keyless local embeddings fallback (heavy: pulls torch). Install with:
+#   uv sync --extra local-embeddings
+local-embeddings = ["sentence-transformers>=3.0"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",
+    "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
