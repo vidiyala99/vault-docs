@@ -69,6 +69,26 @@ of the window) came with a regression test
 
 ---
 
+## Session 2 — Fri night (UI + product research)
+
+**Delegated to Claude Code:**
+- Single-page UI (design system generated via a UI/UX skill: dark ops-dashboard
+  aesthetic, lifecycle status colors, a11y pass). Built *contract-first* against
+  the not-yet-built chat API so the backend can land behind it with zero UI
+  changes.
+- Web research on the assignment's domain (commercial insurance document
+  intelligence) before writing any RAG code — synthesized into
+  `docs/product-context.md`. Key finding: in this market citations and refusal
+  correctness are E&O-liability features, not nice-to-haves; that ordering now
+  drives the chat/eval build priorities.
+
+**Human decisions:** research-before-code ordering; product priorities
+(citations > refusal correctness > everything else); pointing the session at a
+prior commercial-insurance codebase to port eval-scorer math and the provider
+seam shape from (rebuilt fresh, not copied).
+
+---
+
 ## Prompt engineering log
 
 (Chat/summarization prompt iterations land here as they happen — drafts → final
