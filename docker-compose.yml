@@ -6,7 +6,8 @@ services:
       POSTGRES_PASSWORD: vault
       POSTGRES_DB: vault
     ports:
-      - "5432:5432"
+      # Host 5433 to avoid colliding with any local Postgres already on 5432
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
@@ -19,7 +20,8 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      # Host 6380 to avoid colliding with any local Redis already on 6379
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

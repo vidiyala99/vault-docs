@@ -51,6 +51,22 @@ of the window) came with a regression test
 (`OPEN_API_KEY` → `OPENAI_API_KEY`); reviewed all transition-table edges
 (notably: `ready` is terminal, `failed → queued` allowed for retry).
 
+**Second half of the session — upload API + pipeline, end-to-end:**
+- API contract tests written first (upload/dedupe/415/400, retrieval, full
+  pipeline inline, event-log ordering). Two genuine catches before any code ran:
+  Postgres freezes `now()` per transaction, so same-transaction events shared a
+  timestamp and `created_at` ordering was unstable → ProcessingEvent moved to a
+  monotonic integer PK. And a test-fixture bug (FastAPI dependency override must
+  *be* a generator function, not return a generator) produced a clean RED that
+  was about the fixture, not the app — worth distinguishing before "fixing" code.
+- Smoke-tested the real loop, not just tests: uvicorn + curl upload + an actual
+  RQ worker draining Redis → document `ready` with chunks in ~1s. Windows quirk
+  documented: RQ's default worker forks, so local dev uses `SimpleWorker` with
+  `TimerDeathPenalty` (production worker will run in Docker).
+- Port remap decision (5433/6380): made by me after Claude hit a port collision
+  with another project's containers and asked rather than killing them — also
+  protects whoever grades this from their own local Postgres on 5432.
+
 ---
 
 ## Prompt engineering log

@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
 
     # Infrastructure (defaults match docker-compose.yml)
-    database_url: str = "postgresql+psycopg://vault:vault@localhost:5432/vault"
-    redis_url: str = "redis://localhost:6379/0"
+    database_url: str = "postgresql+psycopg://vault:vault@localhost:5433/vault"
+    redis_url: str = "redis://localhost:6380/0"
     storage_dir: str = "./storage"
 
     # Generation caps — keep cost and latency bounded.

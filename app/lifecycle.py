@@ -9,10 +9,10 @@ through `transition()` so an illegal move is an exception, not silent
 state corruption.
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class DocumentStatus(str, Enum):
+class DocumentStatus(StrEnum):
     UPLOADED = "uploaded"
     QUEUED = "queued"
     PROCESSING = "processing"

@@ -53,7 +53,7 @@ class Document(Base):
     events: Mapped[list["ProcessingEvent"]] = relationship(
         back_populates="document",
         cascade="all, delete-orphan",
-        order_by="ProcessingEvent.created_at",
+        order_by="ProcessingEvent.id",
     )
 
 
@@ -77,7 +77,10 @@ class DocumentChunk(Base):
 class ProcessingEvent(Base):
     __tablename__ = "processing_events"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    # Monotonic integer PK: Postgres `now()` is frozen per transaction, so
+    # two events written in one transaction share a timestamp — the id is
+    # the reliable ordering.
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     document_id: Mapped[str] = mapped_column(
         ForeignKey("documents.id", ondelete="CASCADE"), index=True
     )

@@ -52,7 +52,7 @@ class TestInvariants:
     def test_no_gaps_and_overlap_between_consecutive_chunks(self, source):
         chunks = chunk_text(source, max_chars=MAX, overlap=OVERLAP)
         assert len(chunks) > 1
-        for prev, nxt in zip(chunks, chunks[1:]):
+        for prev, nxt in zip(chunks, chunks[1:], strict=False):
             assert nxt.start <= prev.end  # no content falls between chunks
             assert nxt.start > prev.start  # forward progress, always
 
