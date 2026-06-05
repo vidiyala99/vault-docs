@@ -55,6 +55,14 @@ def upload(client, content: bytes = b"hello vault document", name: str = "notes.
     return client.post("/documents", files={"file": (name, content)})
 
 
+class TestUI:
+    def test_root_serves_the_single_page_ui(self, client):
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "text/html" in resp.headers["content-type"]
+        assert "Vault Docs" in resp.text
+
+
 class TestUpload:
     def test_upload_returns_201_with_queued_document(self, client):
         resp = upload(client)

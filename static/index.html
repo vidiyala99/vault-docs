@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vault Docs — chat with your documents</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600&display=swap');
+
+  /* ── Design tokens ─────────────────────────────────────────────── */
+  :root {
+    --bg: #0B1220;            /* deep midnight */
+    --surface: #111A2C;
+    --surface-2: #182338;
+    --border: #24304A;
+    --text: #E6EBF4;
+    --text-muted: #8B98B0;
+    --primary: #3B82F6;
+    --primary-strong: #2563EB;
+    --ok: #34D399;
+    --warn: #FBBF24;
+    --err: #F87171;
+    --info: #60A5FA;
+    --radius: 10px;
+    --mono: 'Fira Code', ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 400 16px/1.55 'Fira Sans', system-ui, sans-serif;
+    display: flex; flex-direction: column; min-height: 100dvh;
+  }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+
+  /* ── Header ────────────────────────────────────────────────────── */
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 22px; border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; }
+  .logo svg { color: var(--primary); }
+  .logo .mono { font-family: var(--mono); font-weight: 500; color: var(--text-muted); font-size: 13px; }
+  header .spacer { flex: 1; }
+  .health { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+  .health .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); }
+  .health.ok .dot { background: var(--ok); box-shadow: 0 0 8px rgba(52,211,153,.6); }
+  .health.bad .dot { background: var(--err); }
+  header a {
+    color: var(--text-muted); font-size: 13px; text-decoration: none;
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+  }
+  header a:hover { color: var(--text); border-color: var(--primary); transition: all .2s; }
+
+  /* ── Layout ────────────────────────────────────────────────────── */
+  main {
+    flex: 1; display: grid; grid-template-columns: 400px 1fr; gap: 18px;
+    padding: 18px 22px; max-width: 1440px; width: 100%; margin: 0 auto; min-height: 0;
+  }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    display: flex; flex-direction: column; min-height: 320px; overflow: hidden;
+  }
+  .panel-head {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px;
+  }
+  .panel-head svg { color: var(--text-muted); }
+  .panel-head .count {
+    font: 500 12px var(--mono); color: var(--text-muted);
+    background: var(--surface-2); padding: 2px 8px; border-radius: 99px;
+  }
+
+  /* ── Upload zone ───────────────────────────────────────────────── */
+  .dropzone {
+    margin: 14px; padding: 22px 16px; text-align: center;
+    border: 1.5px dashed var(--border); border-radius: var(--radius);
+    color: var(--text-muted); font-size: 14px; transition: border-color .2s, background .2s;
+  }
+  .dropzone.drag { border-color: var(--primary); background: rgba(59,130,246,.08); }
+  .dropzone strong { color: var(--text); font-weight: 500; }
+  .dropzone .types { font-family: var(--mono); font-size: 12px; margin-top: 6px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 44px;
+    background: var(--primary-strong); color: #fff; border: 0; border-radius: 8px;
+    padding: 10px 18px; font-weight: 500; margin-top: 12px; transition: background .2s;
+  }
+  .btn:hover { background: var(--primary); }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  /* ── Document list ─────────────────────────────────────────────── */
+  .doc-list { overflow-y: auto; padding: 0 14px 14px; flex: 1; }
+  .doc {
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+    margin-bottom: 10px; background: var(--surface-2);
+  }
+  .doc .row { display: flex; align-items: center; gap: 10px; }
+  .doc .name { font-weight: 500; font-size: 14px; flex: 1; overflow-wrap: anywhere; }
+  .doc .meta { font: 400 12px var(--mono); color: var(--text-muted); margin-top: 6px; }
+  .doc .error { font-size: 12.5px; color: var(--err); margin-top: 6px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font: 500 11.5px var(--mono); padding: 3px 10px; border-radius: 99px; white-space: nowrap;
+  }
+  .chip.uploaded, .chip.queued { color: var(--warn); background: rgba(251,191,36,.12); }
+  .chip.processing { color: var(--info); background: rgba(96,165,250,.12); }
+  .chip.ready { color: var(--ok); background: rgba(52,211,153,.12); }
+  .chip.failed { color: var(--err); background: rgba(248,113,113,.12); }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty { padding: 28px 18px; text-align: center; color: var(--text-muted); font-size: 14px; }
+
+  /* ── Chat ──────────────────────────────────────────────────────── */
+  .chat-log { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { max-width: 85%; padding: 12px 14px; border-radius: 12px; font-size: 14.5px; }
+  .msg.user { align-self: flex-end; background: var(--primary-strong); color: #fff; border-bottom-right-radius: 4px; }
+  .msg.bot { align-self: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-bottom-left-radius: 4px; white-space: pre-wrap; }
+  .msg.notice { align-self: center; background: none; color: var(--text-muted); font-size: 13px; text-align: center; }
+  .mode-badge {
+    font: 500 10.5px var(--mono); color: var(--text-muted);
+    border: 1px solid var(--border); padding: 1px 7px; border-radius: 99px;
+    margin-left: 8px; vertical-align: 1px;
+  }
+  .citations { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .cite {
+    font: 500 11.5px var(--mono); color: var(--info);
+    background: rgba(96,165,250,.1); border: 1px solid rgba(96,165,250,.25);
+    padding: 3px 9px; border-radius: 6px; cursor: pointer; border-style: solid;
+  }
+  .cite:hover { background: rgba(96,165,250,.2); }
+  .cite-snippet {
+    font-size: 12.5px; color: var(--text-muted); background: var(--bg);
+    border-left: 2px solid var(--info); padding: 8px 10px; margin-top: 8px; border-radius: 0 6px 6px 0;
+  }
+  .chat-input {
+    display: flex; gap: 10px; padding: 14px; border-top: 1px solid var(--border);
+  }
+  .chat-input input {
+    flex: 1; min-height: 44px; padding: 10px 14px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+    font: inherit; font-size: 14.5px;
+  }
+  .chat-input input::placeholder { color: var(--text-muted); }
+  .chat-input button {
+    min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--primary-strong); border: 0; border-radius: 8px; color: #fff; transition: background .2s;
+  }
+  .chat-input button:hover { background: var(--primary); }
+  .chat-input button:disabled { opacity: .5; cursor: default; }
+
+  /* ── Toast ─────────────────────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(8px);
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 18px; border-radius: 8px; font-size: 14px; opacity: 0;
+    transition: opacity .25s, transform .25s; pointer-events: none; max-width: 90vw;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    Vault Docs <span class="mono">// chat with your documents</span>
+  </div>
+  <div class="spacer"></div>
+  <div class="health" id="health" role="status"><span class="dot"></span><span id="health-label">checking…</span></div>
+  <a href="/docs" target="_blank" rel="noopener">API docs</a>
+</header>
+
+<main>
+  <!-- ── Documents panel ─────────────────────────────────────────── -->
+  <section class="panel" aria-label="Documents">
+    <div class="panel-head">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Documents <span class="count" id="doc-count">0</span>
+    </div>
+
+    <div class="dropzone" id="dropzone">
+      <div><strong>Drop a file</strong> or choose one to upload</div>
+      <div class="types">.pdf · .docx · .txt · .md</div>
+      <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md" hidden
+             aria-label="Choose a document to upload">
+      <button class="btn" id="upload-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload document
+      </button>
+    </div>
+
+    <div class="doc-list" id="doc-list" aria-live="polite">
+      <div class="empty" id="doc-empty">No documents yet — upload one to get started.</div>
+    </div>
+  </section>
+
+  <!-- ── Chat panel ──────────────────────────────────────────────── -->
+  <section class="panel" aria-label="Chat">
+    <div class="panel-head">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Chat
+    </div>
+    <div class="chat-log" id="chat-log" aria-live="polite">
+      <div class="msg notice">Ask a question about your uploaded documents.<br>Answers cite their sources — document, page, and passage.</div>
+    </div>
+    <form class="chat-input" id="chat-form">
+      <input id="chat-text" type="text" autocomplete="off"
+             placeholder="e.g. What does the policy say about water damage?"
+             aria-label="Your question">
+      <button type="submit" id="chat-send" aria-label="Send question">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </form>
+  </section>
+</main>
+
+<div id="toast" role="status"></div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const API = ""; // same origin
+
+/* ── Toast ── */
+let toastTimer;
+function toast(msg) {
+  const el = $("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 3500);
+}
+
+/* ── Health ── */
+async function checkHealth() {
+  const el = $("health");
+  try {
+    const r = await fetch(API + "/health/ready");
+    const j = await r.json();
+    el.className = "health " + (j.database ? "ok" : "bad");
+    $("health-label").textContent = j.database ? "api + db connected" : "db unreachable";
+  } catch {
+    el.className = "health bad";
+    $("health-label").textContent = "api offline";
+  }
+}
+
+/* ── Documents ── */
+const fmtBytes = (n) => n < 1024 ? n + " B" : n < 1048576 ? (n/1024).toFixed(1) + " KB" : (n/1048576).toFixed(1) + " MB";
+const SPINNER = '<svg class="spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.56"/></svg>';
+
+let docs = [];
+async function loadDocs() {
+  try {
+    const r = await fetch(API + "/documents");
+    docs = await r.json();
+  } catch { return; }
+  renderDocs();
+}
+
+function renderDocs() {
+  $("doc-count").textContent = docs.length;
+  $("doc-empty").style.display = docs.length ? "none" : "";
+  const list = $("doc-list");
+  list.querySelectorAll(".doc").forEach((n) => n.remove());
+  for (const d of docs) {
+    const card = document.createElement("div");
+    card.className = "doc";
+    const busy = d.status === "queued" || d.status === "processing" || d.status === "uploaded";
+    card.innerHTML = `
+      <div class="row">
+        <span class="name"></span>
+        <span class="chip ${d.status}">${busy ? SPINNER : ""}${d.status}</span>
+      </div>
+      <div class="meta">${fmtBytes(d.size_bytes)}${d.page_count ? ` · ${d.page_count} page${d.page_count > 1 ? "s" : ""}` : ""}${d.chunk_count ? ` · ${d.chunk_count} chunks` : ""} · <span title="content hash">${d.content_hash.slice(0, 10)}…</span></div>
+      ${d.error_message ? `<div class="error"></div>` : ""}`;
+    card.querySelector(".name").textContent = d.filename;
+    if (d.error_message) card.querySelector(".error").textContent = d.error_message;
+    list.appendChild(card);
+  }
+}
+
+/* poll while anything is in flight */
+setInterval(() => {
+  if (docs.some((d) => ["uploaded", "queued", "processing"].includes(d.status))) loadDocs();
+}, 2500);
+
+/* ── Upload ── */
+async function upload(file) {
+  const btn = $("upload-btn");
+  btn.disabled = true;
+  const body = new FormData();
+  body.append("file", file);
+  try {
+    const r = await fetch(API + "/documents", { method: "POST", body });
+    const j = await r.json();
+    if (!r.ok) { toast(j.detail || "Upload failed"); return; }
+    toast(j.deduplicated
+      ? `Already in your vault (identical content): ${j.filename}`
+      : `Uploaded ${j.filename} — processing…`);
+    await loadDocs();
+  } catch {
+    toast("Upload failed — is the API running?");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+$("upload-btn").addEventListener("click", () => $("file-input").click());
+$("file-input").addEventListener("change", (e) => {
+  if (e.target.files[0]) upload(e.target.files[0]);
+  e.target.value = "";
+});
+const dz = $("dropzone");
+["dragenter", "dragover"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("drag"); }));
+["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("drag"); }));
+dz.addEventListener("drop", (e) => {
+  if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]);
+});
+
+/* ── Chat (contract-first: backend ships behind these endpoints) ── */
+let sessionId = null;
+
+function addMsg(cls, text) {
+  const div = document.createElement("div");
+  div.className = "msg " + cls;
+  div.textContent = text;
+  $("chat-log").appendChild(div);
+  $("chat-log").scrollTop = $("chat-log").scrollHeight;
+  return div;
+}
+
+function addAnswer(j) {
+  const div = addMsg("bot", j.answer);
+  if (j.mode) {
+    const badge = document.createElement("span");
+    badge.className = "mode-badge";
+    badge.title = j.mode === "ai" ? "Generated by the AI provider" : "Deterministic fallback (no API key / provider error)";
+    badge.textContent = j.mode;
+    div.appendChild(badge);
+  }
+  if (j.citations && j.citations.length) {
+    const wrap = document.createElement("div");
+    wrap.className = "citations";
+    for (const c of j.citations) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "cite";
+      chip.textContent = `${c.filename} · p.${c.page_number}`;
+      chip.setAttribute("aria-label", `Citation: ${c.filename} page ${c.page_number}. Click to view passage.`);
+      chip.addEventListener("click", () => {
+        let snip = chip.parentElement.nextElementSibling;
+        if (snip && snip.className === "cite-snippet") { snip.remove(); return; }
+        snip = document.createElement("div");
+        snip.className = "cite-snippet";
+        snip.textContent = c.snippet || "(passage unavailable)";
+        wrap.after(snip);
+      });
+      wrap.appendChild(chip);
+    }
+    div.appendChild(wrap);
+  }
+  $("chat-log").scrollTop = $("chat-log").scrollHeight;
+}
+
+$("chat-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = $("chat-text");
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = "";
+  addMsg("user", q);
+  const send = $("chat-send");
+  send.disabled = true;
+  const thinking = addMsg("notice", "thinking…");
+  try {
+    if (!sessionId) {
+      const r = await fetch(API + "/chat/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (r.status === 404) throw new Error("not-built");
+      sessionId = (await r.json()).id;
+    }
+    const r = await fetch(API + `/chat/sessions/${sessionId}/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q }),
+    });
+    if (r.status === 404) throw new Error("not-built");
+    const j = await r.json();
+    thinking.remove();
+    if (!r.ok) { addMsg("notice", j.detail || "Something went wrong — try again."); return; }
+    addAnswer(j);
+  } catch (err) {
+    thinking.remove();
+    addMsg("notice", err.message === "not-built"
+      ? "The chat backend isn't wired up yet — document upload & processing are live; retrieval + cited answers are the next build step."
+      : "Couldn't reach the API — is the server running?");
+  } finally {
+    send.disabled = false;
+    input.focus();
+  }
+});
+
+/* ── boot ── */
+checkHealth();
+setInterval(checkHealth, 10000);
+loadDocs();
+</script>
+</body>
+</html>

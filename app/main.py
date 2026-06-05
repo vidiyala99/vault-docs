@@ -5,10 +5,14 @@ Run locally:
 """
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 
 from app.api import documents, health
+
+_STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 
 @asynccontextmanager
@@ -32,3 +36,9 @@ app = FastAPI(
 
 app.include_router(health.router)
 app.include_router(documents.router)
+
+
+@app.get("/", include_in_schema=False)
+def ui() -> FileResponse:
+    """Single-page UI — no build step, served straight from the repo."""
+    return FileResponse(_STATIC_DIR / "index.html")
