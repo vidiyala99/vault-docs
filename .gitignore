@@ -1,0 +1,34 @@
+# Secrets & local config
+.env
+.env.*
+!.env.example
+
+# Private working notes (local-only Claude Code context)
+CLAUDE.md
+.remember/
+.claude/
+
+# Assignment material (not ours to redistribute)
+*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Local storage / artifacts (uploaded docs live here in dev)
+storage/
+*.db
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
