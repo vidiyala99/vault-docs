@@ -8,7 +8,12 @@ from typing import Protocol
 
 from app.config import get_settings
 from app.ingestion.extract import PageText
-from app.rag import RetrievedChunk, answer_from_chunks, condense_question
+from app.rag import (
+    REFUSAL_TEXT,
+    RetrievedChunk,
+    answer_from_chunks,
+    condense_question,
+)
 
 # (role, content) pairs from earlier turns in the chat session.
 History = tuple[tuple[str, str], ...]
@@ -104,7 +109,7 @@ class OpenAIGenerator:
                     "content": (
                         "Answer only from the provided document context. "
                         "If the context does not answer the question, say "
-                        "'I could not find that in your documents.'"
+                        f"exactly: {REFUSAL_TEXT}"
                     ),
                 },
                 # Earlier turns ride along as real chat messages so the

@@ -46,6 +46,10 @@ _STOP_WORDS = {
 _PRONOUNS = {"it", "that", "this", "they", "them", "those", "these", "its"}
 _QUESTION_WORDS = {"how", "much", "many", "when", "where", "which", "who", "why", "does", "do", "can"}
 
+# The one honest refusal, shared by both generators (the AI prompt instructs
+# this exact sentence) so the API and the eval can recognize a refusal.
+REFUSAL_TEXT = "I could not find that in your documents."
+
 
 @dataclass(frozen=True)
 class RetrievedChunk:
@@ -143,7 +147,7 @@ def _is_anaphoric(question: str) -> bool:
 
 def answer_from_chunks(question: str, chunks: list[RetrievedChunk]) -> str:
     if not chunks:
-        return "I could not find that in your documents."
+        return REFUSAL_TEXT
 
     question_terms = _terms(question)
     sentences = _sentences(chunks[0].chunk.text)

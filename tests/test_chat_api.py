@@ -25,10 +25,19 @@ class FakeGenerator:
 
     def __init__(self):
         self.seen_history = None
+        self.seen_chunks = None
 
     def generate(self, question, chunks, history=()):
         self.seen_history = list(history)
+        self.seen_chunks = list(chunks)
         return f"AI answer for: {question}"
+
+
+class RefusingGenerator:
+    mode = "ai"
+
+    def generate(self, question, chunks, history=()):
+        return "I could not find that in your documents."
 
 
 class FakeVectorEmbedder:
@@ -263,6 +272,60 @@ def test_ai_generator_receives_session_history(client, db_session_factory):
         ("user", "What is the property deductible?"),
         ("assistant", "AI answer for: What is the property deductible?"),
     ]
+
+
+def test_ai_refusal_carries_no_citations(client, db_session_factory):
+    """When the model refuses, the near-miss chunks that were retrieved are
+    not sources of the answer — citing them misleads."""
+    from app.api import deps
+
+    doc_id = _upload(
+        client,
+        "Commercial property policy. The property deductible is $10,000.",
+    )
+    _process(client, db_session_factory, doc_id)
+    client.app.dependency_overrides[deps.get_generator] = lambda: RefusingGenerator()
+    session_id = client.post("/chat/sessions", json={}).json()["id"]
+
+    resp = client.post(
+        f"/chat/sessions/{session_id}/ask",
+        json={"question": "What is the property deductible?"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["answer"] == "I could not find that in your documents."
+    assert resp.json()["citations"] == []
+
+
+def test_generator_receives_multiple_chunks_of_context(client, db_session_factory):
+    """limit=1 starves the model: a question whose answer spans the corpus
+    needs more than one retrieved chunk as context."""
+    from app.api import deps
+
+    _upload(
+        client,
+        "Commercial property policy. The property deductible is $10,000.",
+        name="policy-a.txt",
+    )
+    _upload(
+        client,
+        "Umbrella policy. The property deductible is waived above $1,000,000.",
+        name="policy-b.txt",
+    )
+    for doc in client.get("/documents").json():
+        _process(client, db_session_factory, doc["id"])
+    generator = FakeGenerator()
+    client.app.dependency_overrides[deps.get_generator] = lambda: generator
+    session_id = client.post("/chat/sessions", json={}).json()["id"]
+
+    resp = client.post(
+        f"/chat/sessions/{session_id}/ask",
+        json={"question": "What is the property deductible?"},
+    )
+
+    assert resp.status_code == 200
+    assert len(generator.seen_chunks) == 2
+    assert len(resp.json()["citations"]) == 2
 
 
 def test_ask_scoped_to_document_only_cites_that_document(client, db_session_factory):

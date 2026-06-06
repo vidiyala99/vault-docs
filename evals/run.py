@@ -122,7 +122,7 @@ def relevant_chunk_ids(session, question: dict, doc_ids: dict[str, str]) -> set[
 def run_question(session, generator, embedder, question_text: str):
     """Mirror the chat route: retrieve, generate (with fallback), cite."""
     from app.providers import DeterministicGenerator
-    from app.rag import retrieve_chunks
+    from app.rag import REFUSAL_TEXT, retrieve_chunks
 
     query_embedding = None
     if embedder is not None:
@@ -134,7 +134,7 @@ def run_question(session, generator, embedder, question_text: str):
     ranked = retrieve_chunks(
         session, question_text, limit=5, query_embedding=query_embedding
     )
-    answering = ranked[:1]  # the chat route answers from the top chunk
+    answering = ranked[:3]  # the chat route passes three chunks of context
     try:
         answer = generator.generate(question_text, answering)
         mode = generator.mode
@@ -142,10 +142,12 @@ def run_question(session, generator, embedder, question_text: str):
         fallback = DeterministicGenerator()
         answer = fallback.generate(question_text, answering)
         mode = fallback.mode
+    # The chat route strips citations from refusals; score the same behavior.
+    refused = answer.strip() == REFUSAL_TEXT
     return {
         "ranked_chunk_ids": [item.chunk.id for item in ranked],
-        "answer_chunk_texts": [item.chunk.text for item in answering],
-        "citations": [item.document.filename for item in answering],
+        "answer_chunk_texts": [] if refused else [item.chunk.text for item in answering],
+        "citations": [] if refused else [item.document.filename for item in answering],
         "answer": answer,
         "mode": mode,
     }

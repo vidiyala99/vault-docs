@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db, get_embedder, get_generator
 from app.models import ChatMessage, ChatSession, Document
 from app.providers import DeterministicGenerator, Embedder, Generator
-from app.rag import condense_question, retrieve_chunks
+from app.rag import REFUSAL_TEXT, condense_question, retrieve_chunks
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -94,10 +94,12 @@ def ask(
         except Exception:
             query_embedding = None
 
+    # Three chunks of context: one starves the generator on questions whose
+    # support spans a document, and the prompt labels each source anyway.
     retrieved = retrieve_chunks(
         db,
         retrieval_question,
-        limit=1,
+        limit=3,
         query_embedding=query_embedding,
         document_id=payload.document_id,
     )
@@ -108,15 +110,23 @@ def ask(
         fallback = DeterministicGenerator()
         answer = fallback.generate(question, retrieved, history=history)
         mode = fallback.mode
-    citations = [
-        CitationOut(
-            document_id=item.document.id,
-            filename=item.document.filename,
-            page_number=item.chunk.page_number,
-            snippet=item.chunk.text,
-        )
-        for item in retrieved
-    ]
+
+    # A refusal has no sources: the near-miss chunks that were retrieved did
+    # not support the answer, and citing them would dress up "I don't know".
+    refused = answer.strip() == REFUSAL_TEXT
+    citations = (
+        []
+        if refused
+        else [
+            CitationOut(
+                document_id=item.document.id,
+                filename=item.document.filename,
+                page_number=item.chunk.page_number,
+                snippet=item.chunk.text,
+            )
+            for item in retrieved
+        ]
+    )
 
     db.add(ChatMessage(session_id=session.id, role="user", content=question))
     db.add(ChatMessage(session_id=session.id, role="assistant", content=answer))
