@@ -1,3 +1,15 @@
-from app.models.document import Document, DocumentChunk, ProcessingEvent
+from app.models.document import (
+    ChatMessage,
+    ChatSession,
+    Document,
+    DocumentChunk,
+    ProcessingEvent,
+)
 
-__all__ = ["Document", "DocumentChunk", "ProcessingEvent"]
+__all__ = [
+    "ChatMessage",
+    "ChatSession",
+    "Document",
+    "DocumentChunk",
+    "ProcessingEvent",
+]

@@ -22,6 +22,22 @@ class FakeQueue:
         self.jobs.append((fn, args, kwargs))
 
 
+class FakeEmbedder:
+    def embed_documents(self, texts):
+        return [[float(i + 1), 0.0, 0.0] for i, _ in enumerate(texts)]
+
+
+class FakeInsightsProvider:
+    def generate(self, filename, pages):
+        from app.providers import DocumentInsights
+
+        return DocumentInsights(
+            summary=f"Summary for {filename}",
+            key_points=["deductible is documented", "flood exclusion is documented"],
+            document_type="policy",
+        )
+
+
 @pytest.fixture
 def fake_queue():
     return FakeQueue()
@@ -122,7 +138,10 @@ class TestProcessingPipeline:
         from app.tasks.process import process_document
 
         process_document(
-            doc_id, session_factory=db_session_factory, storage=client.storage
+            doc_id,
+            session_factory=db_session_factory,
+            storage=client.storage,
+            embedder=None,
         )
 
     def test_txt_document_reaches_ready_with_chunks(self, client, db_session_factory):
@@ -167,3 +186,85 @@ class TestProcessingPipeline:
         assert [e.to_status for e in events] == [
             "uploaded", "queued", "processing", "ready",
         ]
+
+    def test_processing_embeds_chunks_when_embedder_is_available(
+        self, client, db_session_factory
+    ):
+        from app.models import DocumentChunk
+        from app.tasks.process import process_document
+
+        doc_id = upload(client, content=b"first chunk has policy details").json()["id"]
+
+        process_document(
+            doc_id,
+            session_factory=db_session_factory,
+            storage=client.storage,
+            embedder=FakeEmbedder(),
+        )
+
+        with db_session_factory() as s:
+            chunk = s.query(DocumentChunk).filter_by(document_id=doc_id).one()
+            assert list(chunk.embedding) == [1.0, 0.0, 0.0]
+
+    def test_processing_generates_document_insights(self, client, db_session_factory):
+        from app.models import Document
+        from app.tasks.process import process_document
+
+        doc_id = upload(
+            client,
+            content=b"Commercial property policy. The property deductible is $10,000.",
+            name="policy.txt",
+        ).json()["id"]
+
+        process_document(
+            doc_id,
+            session_factory=db_session_factory,
+            storage=client.storage,
+            embedder=None,
+            insights_provider=FakeInsightsProvider(),
+        )
+
+        with db_session_factory() as s:
+            doc = s.get(Document, doc_id)
+            assert doc.ai_summary == "Summary for policy.txt"
+            assert doc.ai_key_points == [
+                "deductible is documented",
+                "flood exclusion is documented",
+            ]
+            assert doc.ai_document_type == "policy"
+
+        resp = client.get(f"/documents/{doc_id}/insights")
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "document_id": doc_id,
+            "summary": "Summary for policy.txt",
+            "key_points": ["deductible is documented", "flood exclusion is documented"],
+            "document_type": "policy",
+        }
+
+    def test_processing_can_use_deterministic_insights_fallback(
+        self, client, db_session_factory
+    ):
+        from app.models import Document
+        from app.providers import DeterministicInsightsProvider
+        from app.tasks.process import process_document
+
+        doc_id = upload(
+            client,
+            content=b"Commercial property policy. The deductible is $10,000.",
+            name="policy.txt",
+        ).json()["id"]
+
+        process_document(
+            doc_id,
+            session_factory=db_session_factory,
+            storage=client.storage,
+            embedder=None,
+            insights_provider=DeterministicInsightsProvider(),
+        )
+
+        with db_session_factory() as s:
+            doc = s.get(Document, doc_id)
+            assert doc.ai_document_type == "policy"
+            assert doc.ai_summary == "Commercial property policy."
+            assert doc.ai_key_points[0] == "Commercial property policy."

@@ -33,6 +33,13 @@ class UploadOut(DocumentOut):
     deduplicated: bool
 
 
+class InsightsOut(BaseModel):
+    document_id: str
+    summary: str | None
+    key_points: list[str]
+    document_type: str | None
+
+
 def _out(doc: Document, **extra) -> dict:
     return {
         "id": doc.id,
@@ -106,3 +113,16 @@ def get_document(document_id: str, db: Session = Depends(get_db)):
     if doc is None:
         raise HTTPException(status_code=404, detail="document not found")
     return _out(doc)
+
+
+@router.get("/{document_id}/insights", response_model=InsightsOut)
+def get_document_insights(document_id: str, db: Session = Depends(get_db)):
+    doc = db.get(Document, document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="document not found")
+    return {
+        "document_id": doc.id,
+        "summary": doc.ai_summary,
+        "key_points": doc.ai_key_points or [],
+        "document_type": doc.ai_document_type,
+    }
