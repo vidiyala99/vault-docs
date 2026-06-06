@@ -19,6 +19,24 @@ _STOP_WORDS = {
     "the",
     "to",
     "what",
+    # Question scaffolding carries no retrievable content — "When does the
+    # lease expire?" must not count "when"/"does" as evidence of support.
+    "can",
+    "could",
+    "did",
+    "do",
+    "does",
+    "how",
+    "many",
+    "much",
+    "should",
+    "when",
+    "where",
+    "which",
+    "who",
+    "whom",
+    "why",
+    "would",
 }
 
 # Multi-turn condensation: a follow-up that leans on the previous turn
@@ -123,9 +141,12 @@ def answer_from_chunks(question: str, chunks: list[RetrievedChunk]) -> str:
 
     question_terms = _terms(question)
     sentences = _sentences(chunks[0].chunk.text)
+    # Tie-break equal term overlap toward the shortest sentence: form-style
+    # text yields giant period-less "sentences" that match on incidental
+    # terms, and the precise short sentence should beat them.
     best = max(
         sentences,
-        key=lambda sentence: len(question_terms & set(_terms(sentence))),
+        key=lambda sentence: (len(question_terms & _terms(sentence)), -len(sentence)),
         default=chunks[0].chunk.text,
     )
     return best.strip()
