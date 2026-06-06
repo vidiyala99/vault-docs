@@ -35,6 +35,12 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      # Service containers can't mount db/init/, so apply the same extension
+      # setup the compose init script provides locally. vault_test/vault_eval
+      # create the extension themselves; the app's own database needs it here.
+      - name: Create pgvector extension
+        run: PGPASSWORD=vault psql -h localhost -p 5433 -U vault -d vault -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+
       - name: Run tests
         run: uv run pytest -q
 
