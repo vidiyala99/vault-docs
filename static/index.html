@@ -120,25 +120,25 @@
 
   .empty { padding: 28px 18px; text-align: center; color: var(--text-muted); font-size: 14px; }
 
-  /* ── Document insights ─────────────────────────────────────────── */
-  .insights-btn {
-    display: inline-flex; align-items: center; gap: 5px;
-    font: 500 11.5px var(--mono); color: var(--info);
-    background: none; border: 1px solid rgba(96,165,250,.25); border-radius: 6px;
-    padding: 3px 9px; margin-top: 8px; transition: background .2s;
+  /* ── Document insights (right panel, shown for the scoped doc) ──── */
+  .doc-insights {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    background: var(--surface-2); font-size: 13px;
+    max-height: 38%; overflow-y: auto; flex-shrink: 0;
   }
-  .insights-btn:hover { background: rgba(96,165,250,.1); }
-  .insights {
-    margin-top: 10px; padding: 10px 12px; background: var(--bg);
-    border-left: 2px solid var(--info); border-radius: 0 6px 6px 0; font-size: 13px;
+  .doc-insights .insights-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   }
-  .insights .doc-type {
-    font: 500 10.5px var(--mono); color: var(--text-muted);
-    border: 1px solid var(--border); padding: 1px 7px; border-radius: 99px;
+  .doc-insights .insights-title { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+  .doc-insights .doc-type {
+    font: 500 10.5px var(--mono); color: var(--info);
+    border: 1px solid rgba(96,165,250,.25); background: rgba(96,165,250,.1);
+    padding: 1px 8px; border-radius: 99px;
   }
-  .insights p { margin: 8px 0 0; color: var(--text); }
-  .insights ul { margin: 8px 0 0; padding-left: 18px; color: var(--text-muted); }
-  .insights li { margin-top: 3px; }
+  .doc-insights p { margin: 9px 0 0; color: var(--text); }
+  .doc-insights ul { margin: 9px 0 0; padding-left: 18px; color: var(--text-muted); }
+  .doc-insights li { margin-top: 3px; }
+  .doc-insights .insights-pending { color: var(--text-muted); margin-top: 0; }
 
   /* ── Chat ──────────────────────────────────────────────────────── */
   .chat-log { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
@@ -253,6 +253,7 @@
         <button type="button" id="scope-clear" aria-label="Clear document scope — chat with all documents">✕</button>
       </span>
     </div>
+    <div class="doc-insights" id="doc-insights" hidden aria-live="polite"></div>
     <div class="chat-log" id="chat-log" aria-live="polite">
       <div class="msg notice">Ask a question about your uploaded documents.<br>Answers cite their sources — document, page, and passage.</div>
     </div>
@@ -356,13 +357,6 @@ function renderDocs() {
       card.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setScope(d); }
       });
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "insights-btn";
-      btn.innerHTML = "✦ insights";
-      btn.setAttribute("aria-label", `Show AI insights for ${d.filename}`);
-      btn.addEventListener("click", (e) => { e.stopPropagation(); toggleInsights(d, card); });
-      card.appendChild(btn);
     }
     list.appendChild(card);
   }
@@ -379,7 +373,12 @@ function setScope(d) {
   scope = same ? null : { id: d.id, filename: d.filename };
   sessionId = null;
   $("scope-chip").hidden = !scope;
-  if (scope) $("scope-name").textContent = scope.filename;
+  if (scope) {
+    $("scope-name").textContent = scope.filename;
+    showInsightsPanel(d);
+  } else {
+    hideInsightsPanel();
+  }
   addMsg("notice", scope
     ? `Now chatting with ${d.filename} only — click it again (or ✕) to search everything.`
     : "Back to chatting with all documents.");
@@ -391,6 +390,7 @@ $("scope-clear").addEventListener("click", () => {
   scope = null;
   sessionId = null;
   $("scope-chip").hidden = true;
+  hideInsightsPanel();
   addMsg("notice", "Back to chatting with all documents.");
   renderDocs();
 });
@@ -406,19 +406,44 @@ async function fetchInsights(id) {
   return insightsCache[id];
 }
 
-async function toggleInsights(d, card) {
-  const open = card.querySelector(".insights");
-  if (open) { open.remove(); return; }
+/* Render the scoped document's insights in the right panel, above the chat. */
+async function showInsightsPanel(d) {
+  const panel = $("doc-insights");
+  panel.replaceChildren();
+  panel.hidden = false;
+
+  const head = document.createElement("div");
+  head.className = "insights-head";
+  const title = document.createElement("span");
+  title.className = "insights-title";
+  title.textContent = d.filename;
+  head.appendChild(title);
+  panel.appendChild(head);
+
+  const pending = document.createElement("p");
+  pending.className = "insights-pending";
+  pending.textContent = "Loading insights…";
+  panel.appendChild(pending);
+
   const j = await fetchInsights(d.id);
-  if (!j || !j.summary) { toast("Insights not available for this document yet."); return; }
-  const div = document.createElement("div");
-  div.className = "insights";
+  // Scope may have changed while we awaited — don't clobber another doc's panel.
+  if (!scope || scope.id !== d.id) return;
+  pending.remove();
+
+  if (!j || !j.summary) {
+    const none = document.createElement("p");
+    none.className = "insights-pending";
+    none.textContent = "Insights aren't available for this document yet.";
+    panel.appendChild(none);
+    return;
+  }
   const type = document.createElement("span");
   type.className = "doc-type";
   type.textContent = j.document_type || "document";
+  head.appendChild(type);
   const summary = document.createElement("p");
   summary.textContent = j.summary;
-  div.append(type, summary);
+  panel.appendChild(summary);
   if (j.key_points && j.key_points.length) {
     const ul = document.createElement("ul");
     for (const k of j.key_points) {
@@ -426,9 +451,14 @@ async function toggleInsights(d, card) {
       li.textContent = k;
       ul.appendChild(li);
     }
-    div.appendChild(ul);
+    panel.appendChild(ul);
   }
-  card.appendChild(div);
+}
+
+function hideInsightsPanel() {
+  const panel = $("doc-insights");
+  panel.hidden = true;
+  panel.replaceChildren();
 }
 
 /* poll while anything is in flight */
