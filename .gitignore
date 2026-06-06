@@ -23,8 +23,11 @@ venv/
 htmlcov/
 .coverage
 
-# Local storage / artifacts (uploaded docs live here in dev)
-storage/
+# Local storage / artifacts (uploaded docs live here in dev).
+# Anchored to repo root: an unanchored "storage/" also ignored app/storage/,
+# which silently kept the whole storage module out of the repo until CI's
+# first clean-clone run caught the missing import.
+/storage/
 *.db
 
 # OS / editor
