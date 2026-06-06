@@ -23,7 +23,11 @@ class FakeQueue:
 class FakeGenerator:
     mode = "ai"
 
-    def generate(self, question, chunks):
+    def __init__(self):
+        self.seen_history = None
+
+    def generate(self, question, chunks, history=()):
+        self.seen_history = list(history)
         return f"AI answer for: {question}"
 
 
@@ -184,6 +188,81 @@ def test_ask_uses_ai_generator_when_configured(client, db_session_factory):
     assert body["mode"] == "ai"
     assert body["answer"] == "AI answer for: What is the property deductible?"
     assert body["citations"][0]["document_id"] == doc_id
+
+
+def test_anaphoric_followup_retrieves_via_previous_turn(client, db_session_factory):
+    """Multi-turn: 'How much is it?' has nothing to retrieve on by itself —
+    the condensed query must borrow the previous user turn's terms."""
+    doc_id = _upload(
+        client,
+        "Commercial property policy. The property deductible is $10,000. "
+        "Water damage is excluded when caused by flood.",
+    )
+    _process(client, db_session_factory, doc_id)
+    session_id = client.post("/chat/sessions", json={}).json()["id"]
+
+    first = client.post(
+        f"/chat/sessions/{session_id}/ask",
+        json={"question": "Tell me about the property deductible."},
+    )
+    assert "$10,000" in first.json()["answer"]
+
+    followup = client.post(
+        f"/chat/sessions/{session_id}/ask",
+        json={"question": "How much is it?"},
+    )
+
+    assert followup.status_code == 200
+    body = followup.json()
+    assert "$10,000" in body["answer"]
+    assert body["citations"][0]["document_id"] == doc_id
+
+
+def test_followup_without_prior_turns_still_refuses(client, db_session_factory):
+    """An anaphoric question on a fresh session has no context to borrow —
+    it must refuse, not guess."""
+    doc_id = _upload(
+        client,
+        "Commercial property policy. The property deductible is $10,000.",
+    )
+    _process(client, db_session_factory, doc_id)
+    session_id = client.post("/chat/sessions", json={}).json()["id"]
+
+    resp = client.post(
+        f"/chat/sessions/{session_id}/ask",
+        json={"question": "How much is it?"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["answer"] == "I could not find that in your documents."
+    assert resp.json()["citations"] == []
+
+
+def test_ai_generator_receives_session_history(client, db_session_factory):
+    from app.api import deps
+
+    doc_id = _upload(
+        client,
+        "Commercial property policy. The property deductible is $10,000.",
+    )
+    _process(client, db_session_factory, doc_id)
+    generator = FakeGenerator()
+    client.app.dependency_overrides[deps.get_generator] = lambda: generator
+    session_id = client.post("/chat/sessions", json={}).json()["id"]
+
+    client.post(
+        f"/chat/sessions/{session_id}/ask",
+        json={"question": "What is the property deductible?"},
+    )
+    client.post(
+        f"/chat/sessions/{session_id}/ask",
+        json={"question": "Is that per occurrence?"},
+    )
+
+    assert generator.seen_history == [
+        ("user", "What is the property deductible?"),
+        ("assistant", "AI answer for: What is the property deductible?"),
+    ]
 
 
 def test_ask_uses_vector_retrieval_when_embeddings_are_available(

@@ -9,9 +9,13 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db, get_embedder, get_generator
 from app.models import ChatMessage, ChatSession
 from app.providers import DeterministicGenerator, Embedder, Generator
-from app.rag import retrieve_chunks
+from app.rag import condense_question, retrieve_chunks
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+# Earlier turns passed to the generator — enough for follow-up resolution
+# without letting long sessions inflate the prompt.
+_HISTORY_LIMIT = 6
 
 
 class SessionOut(BaseModel):
@@ -68,20 +72,30 @@ def ask(
     if not question:
         raise HTTPException(status_code=400, detail="question is required")
 
+    # Prior turns, captured before this question is written to the session.
+    history = tuple(
+        (message.role, message.content)
+        for message in session.messages[-_HISTORY_LIMIT:]
+    )
+    prior_user = [content for role, content in history if role == "user"]
+    retrieval_question = condense_question(question, prior_user)
+
     query_embedding = None
     if embedder is not None:
         try:
-            query_embedding = embedder.embed_documents([question])[0]
+            query_embedding = embedder.embed_documents([retrieval_question])[0]
         except Exception:
             query_embedding = None
 
-    retrieved = retrieve_chunks(db, question, limit=1, query_embedding=query_embedding)
+    retrieved = retrieve_chunks(
+        db, retrieval_question, limit=1, query_embedding=query_embedding
+    )
     try:
-        answer = generator.generate(question, retrieved)
+        answer = generator.generate(question, retrieved, history=history)
         mode = generator.mode
     except Exception:
         fallback = DeterministicGenerator()
-        answer = fallback.generate(question, retrieved)
+        answer = fallback.generate(question, retrieved, history=history)
         mode = fallback.mode
     citations = [
         CitationOut(

@@ -21,6 +21,13 @@ _STOP_WORDS = {
     "what",
 }
 
+# Multi-turn condensation: a follow-up that leans on the previous turn
+# ("How much is it?") carries nothing retrievable by itself. The rule is
+# deterministic and inspectable — pronoun present, or fewer than two
+# content-bearing terms once question scaffolding is stripped.
+_PRONOUNS = {"it", "that", "this", "they", "them", "those", "these", "its"}
+_QUESTION_WORDS = {"how", "much", "many", "when", "where", "which", "who", "why", "does", "do", "can"}
+
 
 @dataclass(frozen=True)
 class RetrievedChunk:
@@ -94,6 +101,22 @@ def _retrieve_vector_candidates(
     return ranked[:limit]
 
 
+def condense_question(question: str, prior_user_messages: list[str]) -> str:
+    """Fold the previous user turn into an anaphoric follow-up so retrieval
+    has terms to work with. Standalone questions pass through unchanged."""
+    if not prior_user_messages or not _is_anaphoric(question):
+        return question
+    return f"{prior_user_messages[-1]} {question}"
+
+
+def _is_anaphoric(question: str) -> bool:
+    words = set(re.findall(r"[a-z]+", question.lower()))
+    if words & _PRONOUNS:
+        return True
+    content_terms = _terms(question) - _QUESTION_WORDS - _PRONOUNS
+    return len(content_terms) < 2
+
+
 def answer_from_chunks(question: str, chunks: list[RetrievedChunk]) -> str:
     if not chunks:
         return "I could not find that in your documents."
@@ -109,11 +132,10 @@ def answer_from_chunks(question: str, chunks: list[RetrievedChunk]) -> str:
 
 
 def _terms(text: str) -> set[str]:
-    return {
-        term
-        for term in re.findall(r"[a-z0-9$.,]+", text.lower())
-        if len(term) > 1 and term not in _STOP_WORDS
-    }
+    # "." and "," stay inside terms ("$10,000") but are stripped at the
+    # edges so "deductible." and "deductible" are the same term.
+    terms = (term.strip(".,") for term in re.findall(r"[a-z0-9$.,]+", text.lower()))
+    return {term for term in terms if len(term) > 1 and term not in _STOP_WORDS}
 
 
 def _keyword_score(question_terms: set[str], text_terms: set[str]) -> float:

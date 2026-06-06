@@ -8,7 +8,10 @@ from typing import Protocol
 
 from app.config import get_settings
 from app.ingestion.extract import PageText
-from app.rag import RetrievedChunk, answer_from_chunks
+from app.rag import RetrievedChunk, answer_from_chunks, condense_question
+
+# (role, content) pairs from earlier turns in the chat session.
+History = tuple[tuple[str, str], ...]
 
 
 class Embedder(Protocol):
@@ -18,7 +21,9 @@ class Embedder(Protocol):
 class Generator(Protocol):
     mode: str
 
-    def generate(self, question: str, chunks: list[RetrievedChunk]) -> str: ...
+    def generate(
+        self, question: str, chunks: list[RetrievedChunk], history: History = ()
+    ) -> str: ...
 
 
 @dataclass(frozen=True)
@@ -35,8 +40,13 @@ class InsightsProvider(Protocol):
 class DeterministicGenerator:
     mode = "deterministic"
 
-    def generate(self, question: str, chunks: list[RetrievedChunk]) -> str:
-        return answer_from_chunks(question, chunks)
+    def generate(
+        self, question: str, chunks: list[RetrievedChunk], history: History = ()
+    ) -> str:
+        # The condensed question carries the previous turn's terms, which is
+        # what the extractive sentence selector needs for follow-ups.
+        prior_user = [content for role, content in history if role == "user"]
+        return answer_from_chunks(condense_question(question, prior_user), chunks)
 
 
 class DeterministicInsightsProvider:
@@ -75,7 +85,9 @@ class OpenAIGenerator:
 
     mode = "ai"
 
-    def generate(self, question: str, chunks: list[RetrievedChunk]) -> str:
+    def generate(
+        self, question: str, chunks: list[RetrievedChunk], history: History = ()
+    ) -> str:
         from openai import OpenAI
 
         context = "\n\n".join(
@@ -95,6 +107,9 @@ class OpenAIGenerator:
                         "'I could not find that in your documents.'"
                     ),
                 },
+                # Earlier turns ride along as real chat messages so the
+                # model can resolve follow-ups ("is that per occurrence?").
+                *({"role": role, "content": content} for role, content in history),
                 {
                     "role": "user",
                     "content": f"Context:\n{context}\n\nQuestion: {question}",
