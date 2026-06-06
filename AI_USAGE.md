@@ -171,6 +171,41 @@ per-document processing and cheaper model for chat/evals.
 
 ---
 
+## Session 6 - metrics APIs and multi-turn chat
+
+**Goal:** close the two remaining required surfaces before the eval suite:
+metrics APIs and multi-turn conversations.
+
+**Delegated to Claude Code:**
+- Session pickup itself: the new session read CLAUDE.md + git log + the
+  uncommitted diff, verified the WIP was green (60 tests), found and fixed a
+  duplicate `__all__` that silently shadowed the chat-model exports, then split
+  the uncommitted work into three reviewable commits (provider seam / chat /
+  docs) rather than one blob.
+- Metrics test-first: tests insert processing events with explicit timestamps
+  and assert exact derived numbers (failure rate 1/3, avg 3.0s) — the contract
+  pinned is "metrics derive from the event log", not "some counters exist".
+  `/metrics/documents` and `/metrics/processing` needed zero new writes
+  anywhere in the pipeline; they are views over the append-only event log.
+- Multi-turn test-first: "Tell me about the property deductible." then
+  "How much is it?" must answer $10,000 with a citation; the same follow-up on
+  a fresh session must refuse (nothing to borrow). Implementation is a
+  deterministic condensation rule — pronoun or <2 content terms folds the
+  previous user turn into the retrieval query — plus history passed to the
+  OpenAI generator as real chat messages.
+- The follow-up test exposed a real tokenizer bug: a question ending
+  "deductible." kept the period inside the term ("." is in the term charset
+  for "$10,000") and missed the chunk term "deductible". Fix strips edge
+  punctuation while preserving it internally; regression covered.
+
+**Human decisions:** condensation stays deterministic (no LLM query-rewrite
+call on the hot path) — same answer for the same session transcript every
+time, which the eval suite can then score honestly.
+
+**Verification:** `uv run pytest -q` -> 70 passed.
+
+---
+
 ## Prompt engineering log
 
 (Chat/summarization prompt iterations land here as they happen — drafts → final
