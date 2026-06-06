@@ -61,22 +61,27 @@ def retrieve_chunks(
     limit: int = 3,
     min_score: int = 2,
     query_embedding: list[float] | None = None,
+    document_id: str | None = None,
 ) -> list[RetrievedChunk]:
     terms = _terms(question)
     if not terms:
         return []
 
     if query_embedding is not None:
-        vector_ranked = _retrieve_vector_candidates(db, terms, query_embedding, limit=limit)
+        vector_ranked = _retrieve_vector_candidates(
+            db, terms, query_embedding, limit=limit, document_id=document_id
+        )
         if vector_ranked:
             return vector_ranked
 
-    rows = (
+    query = (
         db.query(DocumentChunk, Document)
         .join(Document, Document.id == DocumentChunk.document_id)
         .filter(Document.status == DocumentStatus.READY.value)
-        .all()
     )
+    if document_id is not None:
+        query = query.filter(Document.id == document_id)
+    rows = query.all()
     ranked = []
     for chunk, document in rows:
         text_terms = set(_terms(chunk.text))
@@ -95,17 +100,18 @@ def _retrieve_vector_candidates(
     *,
     limit: int,
     candidate_limit: int = 20,
+    document_id: str | None = None,
 ) -> list[RetrievedChunk]:
     distance = DocumentChunk.embedding.cosine_distance(query_embedding)
-    rows = (
+    query = (
         db.query(DocumentChunk, Document, distance.label("distance"))
         .join(Document, Document.id == DocumentChunk.document_id)
         .filter(Document.status == DocumentStatus.READY.value)
         .filter(DocumentChunk.embedding.is_not(None))
-        .order_by(distance)
-        .limit(candidate_limit)
-        .all()
     )
+    if document_id is not None:
+        query = query.filter(Document.id == document_id)
+    rows = query.order_by(distance).limit(candidate_limit).all()
     ranked = []
     for chunk, document, chunk_distance in rows:
         vector_score = 1.0 - float(chunk_distance or 0.0)

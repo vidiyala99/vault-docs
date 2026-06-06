@@ -265,6 +265,77 @@ def test_ai_generator_receives_session_history(client, db_session_factory):
     ]
 
 
+def test_ask_scoped_to_document_only_cites_that_document(client, db_session_factory):
+    """Two docs answer the same question differently — scoping to one must
+    answer from it, not from the global best match."""
+    _upload(
+        client,
+        "Commercial property policy. The property deductible is $10,000.",
+        name="policy-a.txt",
+    )
+    doc_b = _upload(
+        client,
+        "Commercial property policy. The property deductible is $25,000.",
+        name="policy-b.txt",
+    )
+    for doc in client.get("/documents").json():
+        _process(client, db_session_factory, doc["id"])
+    session_id = client.post("/chat/sessions", json={}).json()["id"]
+
+    resp = client.post(
+        f"/chat/sessions/{session_id}/ask",
+        json={"question": "What is the property deductible?", "document_id": doc_b},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "$25,000" in body["answer"]
+    assert {c["document_id"] for c in body["citations"]} == {doc_b}
+
+
+def test_ask_scoped_to_document_refuses_when_it_cannot_answer(
+    client, db_session_factory
+):
+    """The answer exists in another document — a scoped ask must refuse
+    rather than silently widen the search."""
+    _upload(
+        client,
+        "Payroll records show the employee payroll total is $900,000.",
+        name="payroll.txt",
+    )
+    policy_id = _upload(
+        client,
+        "Commercial property policy. The property deductible is $10,000.",
+        name="policy.txt",
+    )
+    for doc in client.get("/documents").json():
+        _process(client, db_session_factory, doc["id"])
+    session_id = client.post("/chat/sessions", json={}).json()["id"]
+
+    resp = client.post(
+        f"/chat/sessions/{session_id}/ask",
+        json={
+            "question": "What is the employee payroll total?",
+            "document_id": policy_id,
+        },
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["answer"] == "I could not find that in your documents."
+    assert resp.json()["citations"] == []
+
+
+def test_ask_scoped_to_unknown_document_is_404(client, db_session_factory):
+    session_id = client.post("/chat/sessions", json={}).json()["id"]
+
+    resp = client.post(
+        f"/chat/sessions/{session_id}/ask",
+        json={"question": "What is the deductible?", "document_id": "nope"},
+    )
+
+    assert resp.status_code == 404
+
+
 def test_ask_uses_vector_retrieval_when_embeddings_are_available(
     client, db_session_factory
 ):

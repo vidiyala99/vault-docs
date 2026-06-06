@@ -99,6 +99,10 @@
     border: 1px solid var(--border); border-radius: 8px; padding: 12px;
     margin-bottom: 10px; background: var(--surface-2);
   }
+  .doc.clickable { cursor: pointer; transition: border-color .15s, background .15s; }
+  .doc.clickable:hover { border-color: var(--primary); }
+  .doc.selected { border-color: var(--primary); background: rgba(59,130,246,.10); }
+  .doc.selected .name { color: var(--info); }
   .doc .row { display: flex; align-items: center; gap: 10px; }
   .doc .name { font-weight: 500; font-size: 14px; flex: 1; overflow-wrap: anywhere; }
   .doc .meta { font: 400 12px var(--mono); color: var(--text-muted); margin-top: 6px; }
@@ -174,6 +178,21 @@
   .chat-input button:hover { background: var(--primary); }
   .chat-input button:disabled { opacity: .5; cursor: default; }
 
+  /* ── Chat scope chip ───────────────────────────────────────────── */
+  .scope-chip {
+    display: inline-flex; align-items: center; gap: 7px; margin-left: auto;
+    font: 500 11.5px var(--mono); color: var(--info);
+    background: rgba(96,165,250,.1); border: 1px solid rgba(96,165,250,.25);
+    padding: 3px 6px 3px 10px; border-radius: 99px; max-width: 260px;
+  }
+  .scope-chip .scope-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .scope-chip button {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: none; border: 0; color: var(--info); font-size: 13px; line-height: 1;
+  }
+  .scope-chip button:hover { background: rgba(96,165,250,.25); }
+
   /* ── Toast ─────────────────────────────────────────────────────── */
   #toast {
     position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(8px);
@@ -229,6 +248,10 @@
     <div class="panel-head">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       Chat
+      <span class="scope-chip" id="scope-chip" hidden>
+        <span class="scope-name" id="scope-name"></span>
+        <button type="button" id="scope-clear" aria-label="Clear document scope — chat with all documents">✕</button>
+      </span>
     </div>
     <div class="chat-log" id="chat-log" aria-live="polite">
       <div class="msg notice">Ask a question about your uploaded documents.<br>Answers cite their sources — document, page, and passage.</div>
@@ -323,17 +346,54 @@ function renderDocs() {
     card.querySelector(".name").textContent = d.filename;
     if (d.error_message) card.querySelector(".error").textContent = d.error_message;
     if (d.status === "ready") {
+      card.classList.add("clickable");
+      if (scope && scope.id === d.id) card.classList.add("selected");
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
+      card.setAttribute("aria-label",
+        `Chat with ${d.filename}` + (scope && scope.id === d.id ? " (selected — click to chat with all documents)" : ""));
+      card.addEventListener("click", () => setScope(d));
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setScope(d); }
+      });
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "insights-btn";
       btn.innerHTML = "✦ insights";
       btn.setAttribute("aria-label", `Show AI insights for ${d.filename}`);
-      btn.addEventListener("click", () => toggleInsights(d, card));
+      btn.addEventListener("click", (e) => { e.stopPropagation(); toggleInsights(d, card); });
       card.appendChild(btn);
     }
     list.appendChild(card);
   }
 }
+
+/* ── Chat scope (click a document to talk to it alone) ──
+   Changing scope starts a fresh chat session: multi-turn condensation
+   borrows earlier turns, and turns answered from a different scope would
+   poison follow-ups. */
+let scope = null;
+
+function setScope(d) {
+  const same = scope && scope.id === d.id;
+  scope = same ? null : { id: d.id, filename: d.filename };
+  sessionId = null;
+  $("scope-chip").hidden = !scope;
+  if (scope) $("scope-name").textContent = scope.filename;
+  addMsg("notice", scope
+    ? `Now chatting with ${d.filename} only — click it again (or ✕) to search everything.`
+    : "Back to chatting with all documents.");
+  renderDocs();
+}
+
+$("scope-clear").addEventListener("click", () => {
+  if (!scope) return;
+  scope = null;
+  sessionId = null;
+  $("scope-chip").hidden = true;
+  addMsg("notice", "Back to chatting with all documents.");
+  renderDocs();
+});
 
 /* ── Insights (AI summary / key points per document) ── */
 const insightsCache = {};
@@ -477,7 +537,7 @@ $("chat-form").addEventListener("submit", async (e) => {
     const r = await fetch(API + `/chat/sessions/${sessionId}/ask`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: q }),
+      body: JSON.stringify({ question: q, document_id: scope ? scope.id : null }),
     });
     if (r.status === 404) throw new Error("not-built");
     const j = await r.json();

@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_embedder, get_generator
-from app.models import ChatMessage, ChatSession
+from app.models import ChatMessage, ChatSession, Document
 from app.providers import DeterministicGenerator, Embedder, Generator
 from app.rag import condense_question, retrieve_chunks
 
@@ -25,6 +25,9 @@ class SessionOut(BaseModel):
 
 class AskIn(BaseModel):
     question: str
+    # Optional scope: restrict retrieval to one document ("chat with this
+    # document"). Unset = search the whole vault.
+    document_id: str | None = None
 
 
 class CitationOut(BaseModel):
@@ -72,6 +75,10 @@ def ask(
     if not question:
         raise HTTPException(status_code=400, detail="question is required")
 
+    if payload.document_id is not None:
+        if db.get(Document, payload.document_id) is None:
+            raise HTTPException(status_code=404, detail="document not found")
+
     # Prior turns, captured before this question is written to the session.
     history = tuple(
         (message.role, message.content)
@@ -88,7 +95,11 @@ def ask(
             query_embedding = None
 
     retrieved = retrieve_chunks(
-        db, retrieval_question, limit=1, query_embedding=query_embedding
+        db,
+        retrieval_question,
+        limit=1,
+        query_embedding=query_embedding,
+        document_id=payload.document_id,
     )
     try:
         answer = generator.generate(question, retrieved, history=history)
