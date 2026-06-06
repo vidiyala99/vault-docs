@@ -206,6 +206,62 @@ time, which the eval suite can then score honestly.
 
 ---
 
+## Session 7 — Sat (eval suite shipped, first live OpenAI run, CI gate)
+
+**Goal:** land the eval suite end-to-end — runner, gold set, committed corpus,
+baseline, CI regression gate — and verify the full AI path against the real
+OpenAI API for the first time.
+
+**Session pickup:** the previous session terminated mid-work. The new session
+reconstructed state from CLAUDE.md + git log + the uncommitted diff, verified
+the in-flight work was green (90 tests), and resumed without losing anything —
+the multi-session workflow's recovery story, exercised for real.
+
+**Live OpenAI E2E smoke (first one):**
+- Upload → RQ worker → real `text-embedding-3-small` vectors (1536-d confirmed
+  in pgvector) → real `gpt-4o` insights → real `gpt-4o-mini` chat with correct
+  citations → multi-turn follow-up → refusal on an unanswerable trap question.
+  Total burn: a few cents.
+- The smoke immediately caught **schema drift**: `create_all` creates missing
+  tables but never alters existing ones, so the long-running dev DB lacked the
+  insights columns added in Session 5. Tests never see this because they build
+  a fresh schema per run. Fixed with `ALTER TABLE`; documented as a take-home
+  scope limit (no Alembic).
+- Flagged for polish: a refusal answer still returns one citation — should
+  refusals return an empty citations list?
+
+**Eval suite → bugs → unit tests:** running the evals against the corpus caught
+two real answering bugs (question scaffolding words counted as evidence terms;
+form-style period-less text winning term-overlap ties). Each was reduced to a
+pinning unit test before the fix — the eval finds the weakness, the unit test
+pins the fix.
+
+**Baseline + CI:**
+- Added `--write-baseline`: aggregate metrics only, keyed by mode, so an AI run
+  is never compared against the deterministic yardstick and baseline refreshes
+  diff cleanly.
+- Committed deterministic baseline: NDCG@5 1.0, MRR 1.0, answer accuracy 0.92,
+  faithfulness 1.0, citation coverage 1.0, refusal accuracy 0.75. The two
+  misses are documented keyless-mode limitations, committed honestly rather
+  than tuned away.
+- CI (pgvector service + pytest + eval-vs-baseline) caught two repo-breaking
+  bugs on its first runs that no local check could ever see:
+  1. An unanchored `storage/` gitignore rule had silently excluded
+     `app/storage/` from version control — every clone of the repo was broken
+     while every local run passed.
+  2. Service containers can't mount `db/init/`, so the app database needed its
+     pgvector extension created explicitly in the workflow.
+
+**Human decisions:** self-funded $5 OpenAI key (swap to a provided key is one
+env var); commit the baseline with its known misses instead of tuning the
+refusal threshold the night before submission; prefer `ALTER TABLE` over
+dropping the dev database when the schema drifted.
+
+**Verification:** 90 passed locally; CI green on a clean clone including the
+eval regression gate.
+
+---
+
 ## Prompt engineering log
 
 (Chat/summarization prompt iterations land here as they happen — drafts → final
