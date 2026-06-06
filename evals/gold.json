@@ -1,0 +1,117 @@
+{
+  "_comment": "Gold Q&A over evals/corpus. 'answerable' questions name the substring the answer must contain and the doc it must come from; relevant chunks for retrieval scoring are derived at runtime as chunks of expected_doc containing expected_substring. 'refusal' questions are not answerable from the corpus and must produce the refusal text, with no citations.",
+  "refusal_text": "I could not find that in your documents.",
+  "questions": [
+    {
+      "id": "policy-deductible",
+      "type": "answerable",
+      "question": "What is the property deductible?",
+      "expected_substring": "$25,000",
+      "expected_doc": "northwind-property-policy.txt"
+    },
+    {
+      "id": "policy-wind-hail",
+      "type": "answerable",
+      "question": "What is the wind and hail deductible?",
+      "expected_substring": "2%",
+      "expected_doc": "northwind-property-policy.txt"
+    },
+    {
+      "id": "policy-building-limit",
+      "type": "answerable",
+      "question": "What is the building limit of insurance?",
+      "expected_substring": "$6,500,000",
+      "expected_doc": "northwind-property-policy.txt"
+    },
+    {
+      "id": "policy-bi-waiting-period",
+      "type": "answerable",
+      "question": "What is the waiting period for business income coverage?",
+      "expected_substring": "72 hours",
+      "expected_doc": "northwind-property-policy.txt"
+    },
+    {
+      "id": "policy-vacancy",
+      "type": "answerable",
+      "question": "What happens if the building is vacant for more than 60 consecutive days?",
+      "expected_substring": "vandalism and water damage losses are not covered",
+      "expected_doc": "northwind-property-policy.txt"
+    },
+    {
+      "id": "app-payroll",
+      "type": "answerable",
+      "question": "What is the estimated annual payroll for Harbor Light Brewing?",
+      "expected_substring": "$1,380,000",
+      "expected_doc": "acord-style-gl-application.txt"
+    },
+    {
+      "id": "app-aggregate-limit",
+      "type": "answerable",
+      "question": "What general aggregate limit is requested on the application?",
+      "expected_substring": "$2,000,000",
+      "expected_doc": "acord-style-gl-application.txt"
+    },
+    {
+      "id": "app-square-feet",
+      "type": "answerable",
+      "question": "How many square feet is the brewery building?",
+      "expected_substring": "14,500",
+      "expected_doc": "acord-style-gl-application.txt"
+    },
+    {
+      "id": "lossrun-largest-loss",
+      "type": "answerable",
+      "question": "What is the largest single loss on the loss run?",
+      "expected_substring": "$18,400",
+      "expected_doc": "meridian-loss-run-2021-2025.txt"
+    },
+    {
+      "id": "lossrun-open-reserve",
+      "type": "answerable",
+      "question": "What is the posted reserve on the open claim?",
+      "expected_substring": "$12,500",
+      "expected_doc": "meridian-loss-run-2021-2025.txt"
+    },
+    {
+      "id": "article-control-valves",
+      "type": "answerable",
+      "question": "How often should sprinkler control valves be inspected?",
+      "expected_substring": "weekly",
+      "expected_doc": "warehouse-fire-protection-article.txt"
+    },
+    {
+      "id": "article-pallet-distance",
+      "type": "answerable",
+      "question": "How far should outdoor pallet storage be from the building wall?",
+      "expected_substring": "50 feet",
+      "expected_doc": "warehouse-fire-protection-article.txt"
+    },
+    {
+      "id": "article-hot-work-zone",
+      "type": "answerable",
+      "question": "What clear zone is required for hot work permits?",
+      "expected_substring": "35-foot",
+      "expected_doc": "warehouse-fire-protection-article.txt"
+    },
+    {
+      "id": "refuse-do-premium",
+      "type": "refusal",
+      "question": "What is the directors and officers liability premium?"
+    },
+    {
+      "id": "refuse-wc-carrier",
+      "type": "refusal",
+      "question": "Who is the workers compensation carrier?"
+    },
+    {
+      "id": "refuse-lease-expiry",
+      "type": "refusal",
+      "question": "When does the building lease expire?"
+    },
+    {
+      "id": "refuse-extinguishers",
+      "type": "refusal",
+      "question": "How many fire extinguishers are required in the warehouse?"
+    }
+  ]
+}

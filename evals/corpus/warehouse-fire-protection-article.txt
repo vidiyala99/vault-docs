@@ -1,0 +1,56 @@
+KEEPING SPRINKLERED WAREHOUSES ACTUALLY PROTECTED
+A primer for risk managers
+
+Automatic sprinklers remain the single most effective fixed protection
+for warehouse occupancies, but a sprinkler system only earns its credit
+when it matches the commodities stored beneath it. The majority of
+large-loss warehouse fires in sprinklered buildings involve a mismatch:
+storage was changed after the system was designed.
+
+DESIGN BASIS AND COMMODITY CREEP
+
+Every sprinkler system is designed against a specific commodity
+classification, storage height, and storage arrangement. When a tenant
+switches from palletized canned goods to plastic housewares, the fire
+load can double or triple, while the ceiling density the system can
+deliver stays fixed. Risk managers should re-validate the design basis
+whenever stored commodities, rack heights, or aisle widths change.
+Plastics stored above 25 feet in racks generally require in-rack
+sprinklers or an ESFR ceiling-only design.
+
+INSPECTION, TESTING, AND MAINTENANCE
+
+Sprinkler impairments are the second leading driver of large warehouse
+fire losses. A closed control valve can quietly defeat an otherwise
+adequate system. Control valves should be locked open and inspected
+weekly. Dry-pipe systems need annual trip tests, and fire pumps require
+weekly churn tests plus an annual flow test. Impairment management
+matters most: any planned shutdown of fire protection should follow a
+permit process with the insurer notified and hot work suspended while
+protection is out of service.
+
+HOT WORK AND IGNITION CONTROL
+
+Cutting and welding remain the leading ignition source in warehouse
+fires. A hot work permit program should require a 35-foot clear zone,
+a dedicated fire watch during the work, and a 60-minute monitoring
+period after the work is complete. Battery charging stations for
+forklifts should be located against non-combustible walls with one
+hour of separation from rack storage.
+
+HOUSEKEEPING AND IDLE PALLETS
+
+Idle wooden pallets are among the fastest-developing fire loads in any
+warehouse. Outdoor pallet storage should be at least 50 feet from the
+building wall. Indoor idle pallet stacks should be limited to six feet
+in height unless the sprinkler design specifically contemplates higher
+stacking.
+
+WHAT GOOD LOOKS LIKE
+
+A well-run warehouse program pairs quarterly self-inspections with an
+annual engineering visit, keeps the sprinkler design basis documented
+and posted, and treats every impairment as a managed event rather than
+a maintenance afterthought. Facilities that follow these practices see
+materially lower loss frequency, and when fires do occur, they are far
+more likely to be controlled by the first few sprinkler heads.

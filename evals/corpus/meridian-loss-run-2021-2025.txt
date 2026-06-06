@@ -1,0 +1,59 @@
+MERIDIAN CASUALTY INSURANCE GROUP
+LOSS RUN REPORT
+
+Insured: Harbor Light Brewing LLC
+Policy: ML-GL-887341 (General Liability)
+Valuation Date: April 30, 2026
+Period Covered: July 1, 2021 through April 30, 2026
+Prepared For: Pacific Crest Insurance Brokers
+
+CLAIM DETAIL
+
+Claim Number: MC-2021-30417
+Date of Loss: September 9, 2021
+Cause: Patron struck by falling keg during taproom event
+Status: Closed
+Paid Indemnity: $7,250
+Paid Expense: $1,180
+Total Incurred: $8,430
+
+Claim Number: MC-2022-41866
+Date of Loss: June 2, 2022
+Cause: Foodborne illness allegation, taproom kitchen
+Status: Closed without payment
+Paid Indemnity: $0
+Paid Expense: $2,340
+Total Incurred: $2,340
+
+Claim Number: MC-2023-55102
+Date of Loss: November 14, 2023
+Cause: Slip and fall on wet taproom floor
+Status: Closed
+Paid Indemnity: $15,000
+Paid Expense: $3,400
+Total Incurred: $18,400
+
+Claim Number: MC-2025-61227
+Date of Loss: February 3, 2025
+Cause: Delivery driver backed into customer vehicle in loading zone
+Status: Open
+Paid Indemnity: $0
+Paid Expense: $960
+Reserve: $12,500
+Total Incurred: $13,460
+
+SUMMARY
+
+Total claims reported in the period: 4
+Closed claims: 3
+Open claims: 1
+Total paid across all claims: $30,130
+Total incurred across all claims: $42,630
+
+The largest single loss in the period is claim MC-2023-55102 with a
+total incurred of $18,400. The only open claim is MC-2025-61227, with
+a posted reserve of $12,500.
+
+Loss runs are valued as of the valuation date above and are subject to
+change as reserves develop. Certified by Meridian Casualty claims
+operations, reference LR-2026-009912.
