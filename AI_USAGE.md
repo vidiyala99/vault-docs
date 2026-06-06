@@ -266,3 +266,27 @@ eval regression gate.
 
 (Chat/summarization prompt iterations land here as they happen — drafts → final
 with reasoning, per the case study's ask.)
+
+### Insights prompt — document_type was being told, not asked
+
+**v1 (draft):** `"Extract concise document insights for an insurance document.
+Return strict JSON with keys summary, key_points, document_type. ..."`
+
+Worked perfectly on the insurance corpus. Then a hackathon project PDF uploaded
+through the UI came back as `document_type: "Insurance Document"` — the prompt
+*asserted* the domain, so gpt-4o obliged rather than classifying. A leading
+prompt turns a classification field into an echo.
+
+**v2 (final):** `"Extract concise insights from the uploaded document. ...
+document_type names what the document actually is, judged from its content
+(e.g. 'Commercial Property Insurance Policy', 'Loss Run Report', 'Research
+Paper', 'Meeting Notes'). ..."`
+
+The examples keep insurance documents first-class (the product's home domain)
+without presuming every upload is one. Re-ran against the same PDF: now
+`"Hackathon Project Proposal"`.
+
+**How it was caught:** by uploading an out-of-domain document through the real
+UI — not by the test suite. Provider tests use fakes, so prompt wording is
+invisible to them; only live use (or an LLM-judge eval) can catch a leading
+prompt. Noted as a limitation of the current eval coverage.

@@ -139,8 +139,11 @@ class OpenAIInsightsProvider:
                 {
                     "role": "system",
                     "content": (
-                        "Extract concise document insights for an insurance document. "
+                        "Extract concise insights from the uploaded document. "
                         "Return strict JSON with keys summary, key_points, document_type. "
+                        "document_type names what the document actually is, judged from "
+                        "its content (e.g. 'Commercial Property Insurance Policy', "
+                        "'Loss Run Report', 'Research Paper', 'Meeting Notes'). "
                         "key_points must be an array of short strings."
                     ),
                 },
