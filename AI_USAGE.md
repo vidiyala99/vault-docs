@@ -89,6 +89,88 @@ seam shape from (rebuilt fresh, not copied).
 
 ---
 
+## Session 3 - chat spine
+
+**Goal:** land the first end-to-end chat contract without requiring API keys.
+
+**Delegated to Claude Code:**
+- Wrote the chat API tests first: ready document -> create session -> ask
+  question -> deterministic answer with document/page/snippet citation.
+- Implemented persisted chat sessions and messages, a deterministic retriever,
+  and an extractive deterministic generator. The first green path answers from
+  ready chunks and returns citations shaped for the existing UI.
+- Added a refusal regression test where a question shares one term with the
+  source text but asks for an unsupported fact. The fix was a conservative
+  minimum-support threshold so one keyword cannot justify a fabricated answer.
+- Added a message history endpoint for the session/history requirement.
+
+**Human decisions:** keep this keyless path intentionally simple and auditable
+before adding embeddings/OpenAI. This preserves the reproducible demo and gives
+the eval harness a deterministic baseline.
+
+**Verification:** `uv run pytest -q` -> 54 passed.
+
+---
+
+## PDF requirement correction - API key path
+
+After re-reading the assignment PDF, corrected the implementation posture:
+OpenAI API or Claude is listed under the required technical stack, with GPT-4
+plus embeddings API called out for OpenAI. Keyless deterministic mode remains
+valuable as a fallback and reproducible baseline, but the full assignment path
+must use an API key.
+
+Implemented provider seams for:
+- OpenAI embeddings during document processing when `OPENAI_API_KEY` is set.
+- OpenAI-compatible chat generation behind the existing `/chat/sessions/{id}/ask`
+  endpoint.
+- Deterministic fallback if no key is configured or the generator raises.
+
+Tests use fakes for the provider seams so CI does not require a live key or burn
+tokens. Verification after the correction: provider seam tests pass.
+
+---
+
+## Session 4 - embeddings retrieval and reranking
+
+**Goal:** move from lexical-only retrieval to the required embeddings-backed RAG
+path while keeping the deterministic fallback.
+
+**Delegated to Claude Code:**
+- Wrote a chat API test proving ask-time retrieval uses embedded query vectors
+  when embeddings are available.
+- Wired `get_embedder` into the chat route, embedded the question at ask time,
+  and used pgvector cosine distance to fetch candidate chunks with stored
+  embeddings.
+- Added a transparent hybrid rerank: 75% vector score, 25% keyword overlap.
+  Structure-aware reranking was intentionally left out of v1.
+- Added a focused retrieval test that protects the rerank behavior independently
+  of the API route.
+
+**Human decisions:** skip structure-aware boosts until there is an eval baseline;
+keep the first production-ish retrieval path explainable and easy to compare.
+
+---
+
+## Session 5 - document insights
+
+**Goal:** close the required AI Insights surface from the PDF.
+
+**Delegated to Claude Code:**
+- Wrote the processing/API test first: processed document -> persisted summary,
+  key points, document type -> `GET /documents/{id}/insights`.
+- Added insight fields to the document model.
+- Added `InsightsProvider` with OpenAI-backed JSON extraction and deterministic
+  fallback.
+- Wired insights into the processing pipeline after extraction/chunking.
+- Added a deterministic fallback regression test.
+
+**Human decisions:** keep insights as one-time ingest work rather than a chat
+hot-path call; this matches the model-routing decision of stronger model for
+per-document processing and cheaper model for chat/evals.
+
+---
+
 ## Prompt engineering log
 
 (Chat/summarization prompt iterations land here as they happen — drafts → final

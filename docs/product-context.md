@@ -50,10 +50,13 @@ What buyers in this market actually pay for:
 
 From a prior commercial-insurance build (Nightline Risk OS):
 
-- **Provider seam** — per-capability resolution (`OPENAI_API_KEY` present →
-  OpenAI; missing/error → deterministic generation + local embeddings); any
-  provider exception degrades to deterministic rather than failing the request;
-  the response always carries `mode` so degradation is visible, never silent.
+- **Provider seam** — the RAG layer is designed around per-capability
+  resolution (`OPENAI_API_KEY` present → OpenAI chat + embeddings;
+  missing/error → deterministic fallback). The full assignment path uses an API
+  key, while keyless mode exists for reproducible tests and graceful
+  degradation. Provider exceptions should degrade to deterministic behavior
+  rather than failing the request; the response should carry `mode` so
+  degradation is visible, never silent.
 - **Eval layering** — gold scenarios + scorers (NDCG@5, MRR, faithfulness,
   refusal correctness) → committed `baseline.json` **keyed by provider stack**
   (deterministic baseline reproducible with zero keys, LLM rows tracked
