@@ -108,8 +108,12 @@ class OpenAIGenerator:
                     "role": "system",
                     "content": (
                         "Answer only from the provided document context. "
-                        "If the context does not answer the question, say "
-                        f"exactly: {REFUSAL_TEXT}"
+                        "Advice questions ('what should I pick', 'which is "
+                        "best') are answerable when the documents themselves "
+                        "recommend or rank options — quote or paraphrase the "
+                        "document's recommendation with attribution. "
+                        "If the context contains nothing that answers the "
+                        f"question, say exactly: {REFUSAL_TEXT}"
                     ),
                 },
                 # Earlier turns ride along as real chat messages so the

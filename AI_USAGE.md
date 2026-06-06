@@ -290,3 +290,32 @@ without presuming every upload is one. Re-ran against the same PDF: now
 UI — not by the test suite. Provider tests use fakes, so prompt wording is
 invisible to them; only live use (or an LLM-judge eval) can catch a leading
 prompt. Noted as a limitation of the current eval coverage.
+
+### Chat prompt — refusal discipline over-firing on advice questions
+
+**v1:** `"Answer only from the provided document context. If the context does
+not answer the question, say exactly: I could not find that in your documents."`
+
+Live use: scoped to a document whose text literally says `Option A — ...
+(recommended)`, the question "what should I pick" got a refusal. The model had
+the recommendation in context (verified by dumping the retrieved chunks) and
+still refused: under a purely extractive framing, gpt-4o-mini treats
+advice-shaped questions as out of scope regardless of what the context holds.
+
+**v2 (failed):** added "if the documents express an opinion ... relay it with
+attribution". Still refused — a general permission wasn't enough to overcome
+the model's prior that "should I" questions aren't factual lookups.
+
+**v3 (shipped):** name the question shape explicitly: `"Advice questions
+('what should I pick', 'which is best') are answerable when the documents
+themselves recommend or rank options — quote or paraphrase the document's
+recommendation with attribution."` A/B-tested two candidates on the identical
+retrieved context (throwaway harness, same chunks, temperature 0): the
+positive-first variant answered but in its own voice ("You should pick…");
+the explicit-advice variant answered with attribution ("The document
+recommends Option A…") and both still refused the trap question about a fact
+genuinely absent from the document. Shipped the attributed one.
+
+**Lesson:** for refusal-disciplined prompts, naming the *question shapes* that
+are in scope beats granting general permissions; and every loosening iteration
+must re-run the trap question so the refusal floor doesn't silently erode.
