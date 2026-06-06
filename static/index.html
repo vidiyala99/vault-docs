@@ -511,8 +511,19 @@ function addMsg(cls, text) {
   return div;
 }
 
+/* Markdown-lite for model answers: escape EVERYTHING first, then allow
+   exactly bold and bullets back in. No raw model text ever reaches HTML. */
+function renderAnswer(div, text) {
+  const escaped = text
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  div.innerHTML = escaped
+    .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/^[-*] (.+)$/gm, "• $1");
+}
+
 function addAnswer(j) {
-  const div = addMsg("bot", j.answer);
+  const div = addMsg("bot", "");
+  renderAnswer(div, j.answer);
   if (j.mode) {
     const badge = document.createElement("span");
     badge.className = "mode-badge";
