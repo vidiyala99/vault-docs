@@ -1,0 +1,13 @@
+{
+  "deterministic": {
+    "n_questions": 17,
+    "metrics": {
+      "retrieval_ndcg@5": 1.0,
+      "retrieval_mrr": 1.0,
+      "answer_accuracy": 0.9231,
+      "faithfulness": 1.0,
+      "citation_coverage": 1.0,
+      "refusal_accuracy": 0.75
+    }
+  }
+}

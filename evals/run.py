@@ -4,6 +4,8 @@ Usage:
     uv run python -m evals.run                      # print metrics JSON
     uv run python -m evals.run --output out.json    # also write to file
     uv run python -m evals.run --compare-baseline   # exit 1 on regression
+    uv run python -m evals.run --write-baseline     # record current metrics
+                                                    # as the baseline for this mode
 
 The corpus is ingested through the REAL pipeline (process_document, real
 storage, real chunker) into an isolated `vault_eval` database, and answers
@@ -229,10 +231,31 @@ def compare_with_baseline(report: dict) -> list[str]:
     return problems
 
 
+def write_baseline(report: dict) -> None:
+    """Record this run's metrics as the committed baseline for its mode.
+
+    Only aggregate metrics are stored — per-question detail would make every
+    baseline refresh a noisy diff without strengthening the regression gate.
+    """
+    baselines = (
+        json.loads(_BASELINE_PATH.read_text(encoding="utf-8"))
+        if _BASELINE_PATH.exists()
+        else {}
+    )
+    baselines[report["mode"]] = {
+        "n_questions": report["n_questions"],
+        "metrics": report["metrics"],
+    }
+    _BASELINE_PATH.write_text(
+        json.dumps(baselines, indent=2) + "\n", encoding="utf-8"
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--compare-baseline", action="store_true")
+    parser.add_argument("--write-baseline", action="store_true")
     parser.add_argument(
         "--deterministic",
         action="store_true",
@@ -262,6 +285,10 @@ def main(argv: list[str] | None = None) -> int:
     print(json.dumps(report, indent=2))
     if args.output:
         args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+
+    if args.write_baseline:
+        write_baseline(report)
+        print(f"\nbaseline written for mode '{report['mode']}'", file=sys.stderr)
 
     if args.compare_baseline:
         problems = compare_with_baseline(report)
