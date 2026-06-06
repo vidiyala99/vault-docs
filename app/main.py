@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
-from app.api import chat, documents, health
+from app.api import chat, documents, health, metrics
 
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
@@ -37,6 +37,7 @@ app = FastAPI(
 app.include_router(health.router)
 app.include_router(documents.router)
 app.include_router(chat.router)
+app.include_router(metrics.router)
 
 
 @app.get("/", include_in_schema=False)
